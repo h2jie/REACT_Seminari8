@@ -3,8 +3,9 @@ import './App.css';
 import { User } from './types';
 import Form from './components/Form';
 import UsersList from './components/UsersList';
-import { fetchUsers, LogIn } from './services/usersService';
+import { fetchUsers, LogIn, updateUser } from './services/usersService';
 import Login from './components/Login';
+import EditUserModal from './components/EditUserModal';
 
 interface AppState {
     currentUser: User | null;
@@ -24,6 +25,7 @@ function App() {
     const [newUsersNumber, setNewUsersNumber] = useState<AppState['newUsersNumber']>(0);
     const [isLoggedIn, setIsLoggedIn] = useState<AppState['isLoggedIn']>(false);
     const [currentUser, setCurrentUser] = useState<AppState['currentUser']>(null);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
 
     const [uiState, setUiState] = useState<UIState>({
         isDarkMode: false,
@@ -95,12 +97,33 @@ function App() {
         }
     };
 
+    const handleUserClick = (user: User) => {
+        setEditingUser(user);
+    };
+
+    const handleSaveUser = async (updatedUser: User) => {
+        try {
+            const savedUser = await updateUser(updatedUser);
+            setUsers(users =>
+                users.map(u => (u.email === savedUser.email ? savedUser : u))
+            );
+            setEditingUser(null);
+            setUiState(prev => ({
+                ...prev,
+                newUserName: savedUser.name,
+                showNotification: true,
+            }));
+        } catch (error) {
+            alert('Failed to update user.');
+        }
+    };
+
     return (
         <div className="App" ref={divRef}>
             {/* Notification Popup */}
             {uiState.showNotification && (
                 <div className={`notification ${uiState.isDarkMode ? 'dark' : 'light'}`}>
-                    User <strong>{uiState.newUserName}</strong> has been created successfully!
+                    User <strong>{uiState.newUserName}</strong> has been {editingUser ? "updated" : "created"} successfully!
                 </div>
             )}
 
@@ -116,12 +139,19 @@ function App() {
                 ) : (
                     <>
                         <h2>Bienvenido, {currentUser?.name}!</h2>
-                        <UsersList users={users} />
+                        <UsersList users={users} onUserClick={handleUserClick} />
                         <p>New users: {newUsersNumber}</p>
                         <Form onNewUser={handleNewUser} />
                     </>
                 )}
             </div>
+            {editingUser && (
+                <EditUserModal
+                    user={editingUser}
+                    onClose={() => setEditingUser(null)}
+                    onSave={handleSaveUser}
+                />
+            )}
         </div>
     );
 }
